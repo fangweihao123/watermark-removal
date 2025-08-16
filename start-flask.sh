@@ -9,9 +9,6 @@ NC='\033[0m'
 
 echo -e "${GREEN}🚀 Starting Watermark Removal API with Flask${NC}"
 
-# 创建必要的目录
-mkdir -p /app/uploads /app/outputs /app/logs
-
 # 检查模型文件
 if [ ! -f "/app/model/checkpoint" ]; then
     echo -e "${YELLOW}⚠️  Warning: Model checkpoint not found at /app/model/checkpoint${NC}"
