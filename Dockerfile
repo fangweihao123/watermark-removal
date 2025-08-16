@@ -48,10 +48,6 @@ COPY . .
 # 创建必要的目录
 RUN mkdir -p /app/uploads /app/outputs /app/logs
 
-# 复制启动脚本并设置权限
-COPY start-flask.sh .
-RUN chmod +x start-flask.sh
-
 # 暴露端口（如果需要web服务）
 EXPOSE 8080
 
@@ -59,5 +55,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-# 启动命令
-CMD ["./start-flask.sh"]
+CMD ["python", "app.py"]
