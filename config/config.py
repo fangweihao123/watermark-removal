@@ -1,4 +1,4 @@
- import os
+import os
 
 class Config:
     """应用配置"""
