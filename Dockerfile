@@ -1,5 +1,5 @@
-# 使用Ubuntu 18.04作为基础镜像，因为TensorFlow 1.15需要较旧的环境
-FROM ubuntu:18.04
+# 使用Python 3.7官方镜像，兼容TensorFlow 1.15
+FROM python:3.7-slim
 
 # 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive
@@ -7,9 +7,6 @@ ENV PYTHONPATH=/app:$PYTHONPATH
 
 # 安装系统依赖
 RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
-    python3-dev \
     git \
     wget \
     curl \
@@ -20,6 +17,8 @@ RUN apt-get update && apt-get install -y \
     libxrender-dev \
     libgomp1 \
     libgtk-3-dev \
+    gcc \
+    g++ \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置工作目录
@@ -28,11 +27,14 @@ WORKDIR /app
 # 复制requirements文件
 COPY requirements.txt .
 
+# 升级pip
+RUN pip install --upgrade pip
+
 # 安装Python依赖
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # 安装neuralgym
-RUN pip3 install git+https://github.com/JiahuiYu/neuralgym
+RUN pip install git+https://github.com/JiahuiYu/neuralgym
 
 # 复制项目文件
 COPY . .
@@ -47,4 +49,4 @@ RUN chmod +x *.py
 EXPOSE 8080
 
 # 默认命令
-CMD ["python3", "main.py", "--help"]
+CMD ["python", "main.py", "--help"]

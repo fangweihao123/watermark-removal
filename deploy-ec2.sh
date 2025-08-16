@@ -62,7 +62,7 @@ fi
 PROJECT_DIR="watermark-removal"
 if [ ! -d "$PROJECT_DIR" ]; then
     echo "📥 克隆项目..."
-    git clone https://github.com/zuruoke/watermark-removal.git
+    git clone https://github.com/fangweihao123/watermark-removal.git
     cd $PROJECT_DIR
 else
     echo "📁 进入项目目录..."
@@ -82,6 +82,12 @@ if [ ! -f "model/checkpoint" ]; then
     echo "下载链接: https://drive.google.com/drive/folders/1xRV4EdjJuAfsX9pQme6XeoFznKXG0ptJ?usp=sharing"
     echo "模型文件包括: checkpoint, snap-0.data-00000-of-00001, snap-0.index, snap-0.meta"
     read -p "按回车键继续（确保已下载模型）..."
+fi
+
+# 确保我们在项目目录中
+if [ ! -f "Dockerfile" ]; then
+    echo "❌ Dockerfile 未找到，请确保在项目目录中"
+    exit 1
 fi
 
 # 构建 Docker 镜像
