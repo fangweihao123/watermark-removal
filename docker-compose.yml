@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  watermark-removal:
+    build: .
+    container_name: watermark-removal-app
+    volumes:
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+      - ./model:/app/model
+    ports:
+      - "8080:8080"
+    environment:
+      - PYTHONPATH=/app
+    command: python3 main.py --image /app/uploads/input.png --output /app/outputs/output.png --checkpoint_dir /app/model/ --watermark_type istock
+    restart: unless-stopped
