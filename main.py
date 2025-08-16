@@ -1,6 +1,6 @@
 import argparse
 
-import Image
+from PIL import Image
 import cv2
 import numpy as np
 from preprocess_image import preprocess_image
