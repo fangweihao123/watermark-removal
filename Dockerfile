@@ -4,6 +4,9 @@ FROM python:3.7-slim
 # 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONPATH=/app:$PYTHONPATH
+ENV PYTHONUNBUFFERED=1
+ENV FLASK_APP=app.py
+ENV FLASK_ENV=production
 
 # 安装系统依赖
 RUN apt-get update && apt-get install -y \
@@ -43,13 +46,18 @@ RUN pip install git+https://github.com/JiahuiYu/neuralgym
 COPY . .
 
 # 创建必要的目录
-RUN mkdir -p /app/uploads /app/outputs
+RUN mkdir -p /app/uploads /app/outputs /app/logs
 
-# 设置权限
-RUN chmod +x *.py
+# 复制启动脚本并设置权限
+COPY start-flask.sh .
+RUN chmod +x start-flask.sh
 
 # 暴露端口（如果需要web服务）
 EXPOSE 8080
 
-# 默认命令 - 保持容器运行
-CMD ["tail", "-f", "/dev/null"]
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# 启动命令
+CMD ["./start-flask.sh"]
