@@ -6,7 +6,7 @@ import os
 import logging
 from datetime import datetime
 import traceback
-from watermark_service import WatermarkRemovalService
+from service.watermark_service import WatermarkRemovalService
 from config import Config
 
 app = Flask(__name__)
