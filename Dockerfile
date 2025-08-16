@@ -48,5 +48,5 @@ RUN chmod +x *.py
 # 暴露端口（如果需要web服务）
 EXPOSE 8080
 
-# 默认命令
-CMD ["python", "main.py", "--help"]
+# 默认命令 - 保持容器运行
+CMD ["tail", "-f", "/dev/null"]
