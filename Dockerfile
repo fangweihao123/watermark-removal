@@ -30,6 +30,9 @@ COPY requirements.txt .
 # 升级pip
 RUN pip install --upgrade pip
 
+# 先安装基础数值计算库
+RUN pip install --no-cache-dir numpy==1.19.5
+
 # 安装Python依赖
 RUN pip install --no-cache-dir -r requirements.txt
 
