@@ -67,7 +67,7 @@ def remove_watermark():
         logger.info(f"File saved: {input_path}")
 
         # 处理图像
-        success = watermark_service.process_image(
+        success = service.process_image(
             input_path, output_path, watermark_type
         )
 
