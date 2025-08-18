@@ -195,10 +195,10 @@ class WatermarkRemovalService:
                     logger.info(f"Video processed successfully: {output_path}")
                     return True
 
-        finally:
-            # 清理临时文件
-            shutil.rmtree(temp_dir, ignore_errors=True)
-            video.close()
+                finally:
+                    # 清理临时文件
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+                    video.close()
 
         except Exception as e:
             logger.error(f"Error processing video: {e}")
