@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
+from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from werkzeug.exceptions import RequestEntityTooLarge
 import uuid
@@ -11,6 +12,9 @@ from config.config import Config
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# 配置CORS
+CORS(app, origins=['http://localhost:3000'])
 
 # 设置日志
 logging.basicConfig(level=logging.INFO)
