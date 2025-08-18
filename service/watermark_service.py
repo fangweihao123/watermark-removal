@@ -117,3 +117,139 @@ class WatermarkRemovalService:
             import traceback
             logger.error(traceback.format_exc())
             return False
+
+    def process_video(self, input_path, output_path, 
+        watermark_type='istock', task_id=None):
+        """
+        处理视频去水印
+        
+        Args:
+            input_path: 输入视频路径
+            output_path: 输出视频路径
+            watermark_type: 水印类型
+            task_id: 任务ID，用于进度跟踪
+        
+        Returns:
+            bool: 处理是否成功
+        """
+        try:
+            with self._lock:
+                logger.info(f"Processing video: {input_path}")
+
+                # 加载视频
+                video = mp.VideoFileClip(input_path)
+
+                # 检查视频长度限制（60秒）
+                if video.duration > 60:
+                    logger.error("Video duration exceeds 60 seconds limit")
+                    return False
+
+                # 创建临时目录处理帧
+                temp_dir = tempfile.mkdtemp()
+
+                try:
+                    # 提取帧
+                    fps = video.fps
+                    frames = []
+                    total_frames = int(video.duration * fps)
+
+                    for i, frame in enumerate(video.iter_frames()):
+                        if task_id:
+                            self._update_progress(task_id, i / total_frames * 0.3)  # 30%用于提取帧
+
+                        # 保存帧为临时图片
+                        frame_path = os.path.join(temp_dir, f"frame_{i:06d}.png")
+                        cv2.imwrite(frame_path, cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+
+                        # 处理帧去水印
+                        processed_frame_path = os.path.join(temp_dir, f"processed_{i:06d}.png")
+
+                        # 使用现有的图片处理逻辑
+                        success = self._process_single_frame(frame_path, processed_frame_path, watermark_type)
+
+                        if success:
+                            frames.append(processed_frame_path)
+                            if task_id:
+                                self._update_progress(task_id, 0.3 + (i / total_frames) * 0.6)  # 60%用于处理帧
+                        else:
+                            logger.warning(f"Failed to process frame {i}")
+                            frames.append(frame_path)  # 使用原帧
+
+                    # 重新组装视频
+                    if task_id:
+                        self._update_progress(task_id, 0.9)  # 90%开始组装
+
+                    processed_frames = [mp.ImageClip(frame, duration=1/fps) for frame in frames]
+                    final_video = mp.concatenate_videoclips(processed_frames, method="compose")
+
+                    # 添加原始音频
+                    if video.audio:
+                        final_video = final_video.set_audio(video.audio)
+
+                    # 输出视频
+                    final_video.write_videofile(output_path, fps=fps, verbose=False, logger=None)
+
+                    if task_id:
+                        self._update_progress(task_id, 1.0)  # 100%完成
+
+                    logger.info(f"Video processed successfully: {output_path}")
+                    return True
+
+        finally:
+            # 清理临时文件
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            video.close()
+
+        except Exception as e:
+            logger.error(f"Error processing video: {e}")
+            if task_id:
+                self._update_progress(task_id, -1)  # 标记失败
+            return False
+
+    def _process_single_frame(self, input_path, output_path, watermark_type):
+    """处理单帧（复用现有图片处理逻辑）"""
+        try:
+            # 预处理图像
+            image = Image.open(input_path)
+            input_image = preprocess_image(image, watermark_type)
+
+            if input_image.shape == (0,):
+                return False
+
+            # 使用预加载的模型推理
+            result = self.sess.run(self.output_tensor, feed_dict={self.input_placeholder:input_image})
+
+            # 保存结果
+            cv2.imwrite(output_path, cv2.cvtColor(
+                result[0][:, :, ::-1], cv2.COLOR_BGR2RGB
+            ))
+
+            return True
+        except Exception as e:
+            logger.error(f"Error processing frame: {e}")
+            return False
+
+    def _update_progress(self, task_id, progress):
+    """更新任务进度（可以存储到Redis或文件）"""
+        progress_file = f"progress_{task_id}.json"
+        progress_data = {
+            "task_id": task_id,
+            "progress": progress,
+            "timestamp": time.time(),
+            "status": "processing" if progress >= 0 else "failed"
+        }
+
+        try:
+            with open(progress_file, 'w') as f:
+                json.dump(progress_data, f)
+        except:
+            pass
+
+    def get_progress(self, task_id):
+        """获取任务进度"""
+        progress_file = f"progress_{task_id}.json"
+        try:
+            with open(progress_file, 'r') as f:
+                return json.load(f)
+        except:
+            return {"task_id": task_id, "progress": 0, "status": "not_found"}

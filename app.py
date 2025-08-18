@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 service = WatermarkRemovalService()
 
 # 允许的文件扩展名
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'mp4', 'avi', 'mov', 'mkv'}
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -121,6 +121,93 @@ def download_result(task_id):
     except Exception as e:
         logger.error(f"Error downloading file: {str(e)}")
         return jsonify({"error": "Failed to download file"}), 500
+
+@app.route('/api/v1/remove-watermark-video', methods=['POST'])
+def remove_watermark_video():
+    """视频去水印API端点"""
+    try:
+        if 'video' not in request.files:
+            return jsonify({"error": "No video file provided"}), 400
+
+        file = request.files['video']
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+
+        if not allowed_video_file(file.filename):
+            return jsonify({"error": "Video file type not allowed"}), 400
+
+        watermark_type = request.form.get('watermark_type', 'istock')
+        task_id = str(uuid.uuid4())
+
+        filename = secure_filename(file.filename)
+        file_extension = filename.rsplit('.', 1)[1].lower()
+        input_filename = f"{task_id}_input.{file_extension}"
+        output_filename = f"{task_id}_output.mp4"
+
+        input_path = os.path.join(app.config['UPLOAD_FOLDER'], input_filename)
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+
+        file.save(input_path)
+        logger.info(f"Video file saved: {input_path}")
+
+        # 异步处理视频
+        def process_async():
+            success = service.process_video(input_path, output_path, watermark_type, task_id)
+            if not success:
+                logger.error(f"Failed to process video: {task_id}")
+
+            # 清理输入文件
+            try:
+                os.remove(input_path)
+            except:
+                pass
+
+        thread = Thread(target=process_async)
+        thread.daemon = True
+        thread.start()
+
+        return jsonify({
+            "success": True,
+            "task_id": task_id,
+            "message": "Video processing started",
+            "progress_url":f"/api/v1/video-progress/{task_id}",
+            "download_url": f"/api/v1/download-video/{task_id}"
+        }), 202
+
+    except Exception as e:
+        logger.error(f"Error starting video processing: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
+
+@app.route('/api/v1/video-progress/<task_id>', methods=['GET'])
+def get_video_progress(task_id):
+    """获取视频处理进度"""
+    try:
+        progress = service.get_progress(task_id)
+        return jsonify(progress), 200
+    except Exception as e:
+        logger.error(f"Error getting progress: {str(e)}")
+        return jsonify({"error": "Failed to get progress"}), 500
+
+
+@app.route('/api/v1/download-video/<task_id>', methods=['GET'])
+def download_video_result(task_id):
+    """下载视频处理结果"""
+    try:
+        output_filename = f"{task_id}_output.mp4"
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+
+        if not os.path.exists(output_path):
+            return jsonify({"error": "Video not ready or not found"}), 404
+
+        return send_file(
+            output_path,
+            as_attachment=True,
+            download_name=f"watermark_removed_video_{task_id}.mp4",
+            mimetype='video/mp4'
+        )
+    except Exception as e:
+        logger.error(f"Error downloading video: {str(e)}")
+        return jsonify({"error": "Failed to download video"}), 500
 
 @app.errorhandler(413)
 def too_large(e):
