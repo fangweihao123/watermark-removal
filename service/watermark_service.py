@@ -207,7 +207,6 @@ class WatermarkRemovalService:
             return False
 
     def _process_single_frame(self, input_path, output_path, watermark_type):
-    """处理单帧（复用现有图片处理逻辑）"""
         try:
             # 预处理图像
             image = Image.open(input_path)
@@ -230,7 +229,6 @@ class WatermarkRemovalService:
             return False
 
     def _update_progress(self, task_id, progress):
-    """更新任务进度（可以存储到Redis或文件）"""
         progress_file = f"progress_{task_id}.json"
         progress_data = {
             "task_id": task_id,
