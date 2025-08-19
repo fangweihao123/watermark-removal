@@ -7,6 +7,10 @@ from PIL import Image
 import logging
 import threading
 import time
+import tempfile
+import shutil
+import json
+import moviepy.editor as mp
 
 from preprocess_image import preprocess_image
 from inpaint_model import InpaintCAModel
@@ -21,6 +25,9 @@ class WatermarkRemovalService:
         self.model = None
         self.checkpoint_dir = 'model/'
         self._lock = threading.Lock()
+        self.sess = None
+        self.output_tensor = None
+        self.input_placeholder = None
         self._load_config()
         logger.info("WatermarkRemovalService initialized")
 
