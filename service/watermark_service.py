@@ -6,6 +6,7 @@ import neuralgym as ng
 from PIL import Image
 import logging
 import threading
+import time
 
 from preprocess_image import preprocess_image
 from inpaint_model import InpaintCAModel
