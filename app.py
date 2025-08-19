@@ -9,6 +9,7 @@ from datetime import datetime
 import traceback
 from service.watermark_service import WatermarkRemovalService
 from config.config import Config
+from threading import Thread
 
 app = Flask(__name__)
 app.config.from_object(Config)
