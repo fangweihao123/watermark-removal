@@ -133,7 +133,7 @@ def remove_watermark_video():
         if file.filename == '':
             return jsonify({"error": "No file selected"}), 400
 
-        if not allowed_video_file(file.filename):
+        if not allowed_file(file.filename):
             return jsonify({"error": "Video file type not allowed"}), 400
 
         watermark_type = request.form.get('watermark_type', 'istock')
