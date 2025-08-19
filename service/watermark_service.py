@@ -146,9 +146,54 @@ class WatermarkRemovalService:
 
                 # 加载视频
                 video = mp.VideoFileClip(input_path)
+                
+                # 调试信息：打印视频属性
+                logger.info(f"Video duration: {video.duration}")
+                logger.info(f"Video fps: {video.fps}")
+                logger.info(f"Video size: {video.size}")
+
+                # 尝试获取duration和fps，如果为None则使用备用方法
+                duration = video.duration
+                fps = video.fps
+                
+                # 如果moviepy无法获取fps，尝试使用opencv获取
+                if fps is None:
+                    try:
+                        import cv2
+                        cap = cv2.VideoCapture(input_path)
+                        fps = cap.get(cv2.CAP_PROP_FPS)
+                        cap.release()
+                        logger.info(f"Using OpenCV fps: {fps}")
+                    except Exception as e:
+                        logger.warning(f"Failed to get fps from OpenCV: {e}")
+                        fps = 25.0  # 默认帧率
+                        logger.info(f"Using default fps: {fps}")
+                
+                # 如果moviepy无法获取duration，尝试计算
+                if duration is None:
+                    try:
+                        import cv2
+                        cap = cv2.VideoCapture(input_path)
+                        frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+                        fps_cv = cap.get(cv2.CAP_PROP_FPS)
+                        cap.release()
+                        if fps_cv > 0:
+                            duration = frame_count / fps_cv
+                            logger.info(f"Calculated duration: {duration}")
+                    except Exception as e:
+                        logger.warning(f"Failed to calculate duration: {e}")
+
+                # 最终检查
+                if duration is None or duration <= 0:
+                    logger.error("Could not determine video duration")
+                    return False
+                    
+                if fps is None or fps <= 0:
+                    logger.error("Could not determine video fps")
+                    return False
 
                 # 检查视频长度限制（60秒）
-                if video.duration > 60:
+                if duration > 60:
                     logger.error("Video duration exceeds 60 seconds limit")
                     return False
 
@@ -187,9 +232,8 @@ class WatermarkRemovalService:
                         logger.info('Model loaded once for video processing')
 
                         # 提取和处理帧
-                        fps = video.fps
                         frames = []
-                        total_frames = int(video.duration * fps)
+                        total_frames = int(duration * fps)
 
                         for i, frame in enumerate(video.iter_frames()):
                             if task_id:
