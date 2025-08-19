@@ -28,15 +28,9 @@ def preprocess_image(image, watermark_type):
     mask_image = np.array(mask_image)
     print("mask image size: {}".format(mask_image.shape))
 
-    aspectRatioMaskImage = mask_image.shape[1] / mask_image.shape[0]
-    upperBoundAspectRatio = 1.05 * aspectRatioMaskImage
-    lowerBoundAspectRatio = 0.95 * aspectRatioMaskImage
-
-    if aspectRatioImage >= lowerBoundAspectRatio and aspectRatioImage <= upperBoundAspectRatio:
-        preprocessed_mask_image = cv2.resize(mask_image, (image_w, image_h))
-        print(preprocessed_mask_image.shape)
-    else:
-        print("Image size not supported!!!")
+    # 移除纵横比限制，直接将mask调整为输入图片的尺寸
+    preprocessed_mask_image = cv2.resize(mask_image, (image_w, image_h))
+    print(f"Resized mask to match image: {preprocessed_mask_image.shape}")
 
     if (preprocessed_mask_image.shape != (0,)):
         # assert image.shape == preprocessed_mask_image
