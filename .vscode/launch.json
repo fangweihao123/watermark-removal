@@ -6,7 +6,7 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/app.py",
-            "python": "/home/ubuntu/miniconda3/envs/37waterremoval/bin/python",
+            "python": "/home/ubuntu/miniconda3/envs/37watermark/bin/python",
             "console": "integratedTerminal",
             "justMyCode": true,
             "env": {

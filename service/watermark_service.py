@@ -186,8 +186,8 @@ class WatermarkRemovalService:
 
                         # 处理帧去水印（使用单独的方法）
                         processed_frame_path = os.path.join(temp_dir, f"processed_{i:06d}.png")
+                        logger.info(f"正在处理第 {i+1}/{total_frames} 帧")
                         success = self._process_single_frame(frame_path, processed_frame_path, watermark_type)
-
                         if success:
                             frames.append(processed_frame_path)
                         else:

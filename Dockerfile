@@ -13,8 +13,8 @@ RUN apt-get update && apt-get install -y \
     git \
     wget \
     curl \
-    # libgl1 and libglx-mesa0
-    libgl1-mesa-glx \
+    libgl1 \
+    libglx-mesa0 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
