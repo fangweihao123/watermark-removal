@@ -3,3 +3,4 @@ logs
 data
 load_model.py
 *workspace
+*.pyc

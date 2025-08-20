@@ -155,43 +155,9 @@ class WatermarkRemovalService:
                 # 尝试获取duration和fps，如果为None则使用备用方法
                 duration = video.duration
                 fps = video.fps
-                
-                # 如果moviepy无法获取fps，尝试使用opencv获取
-                if fps is None:
-                    try:
-                        import cv2
-                        cap = cv2.VideoCapture(input_path)
-                        fps = cap.get(cv2.CAP_PROP_FPS)
-                        cap.release()
-                        logger.info(f"Using OpenCV fps: {fps}")
-                    except Exception as e:
-                        logger.warning(f"Failed to get fps from OpenCV: {e}")
-                        fps = 25.0  # 默认帧率
-                        logger.info(f"Using default fps: {fps}")
-                
-                # 如果moviepy无法获取duration，尝试计算
-                if duration is None:
-                    try:
-                        import cv2
-                        cap = cv2.VideoCapture(input_path)
-                        frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-                        fps_cv = cap.get(cv2.CAP_PROP_FPS)
-                        cap.release()
-                        if fps_cv > 0:
-                            duration = frame_count / fps_cv
-                            logger.info(f"Calculated duration: {duration}")
-                    except Exception as e:
-                        logger.warning(f"Failed to calculate duration: {e}")
 
-                # 最终检查
-                if duration is None or duration <= 0:
-                    logger.error("Could not determine video duration")
-                    return False
-                    
-                if fps is None or fps <= 0:
-                    logger.error("Could not determine video fps")
-                    return False
-
+                logger.info(f"---video: {video} duration: {duration} fps: {fps}---")
+                
                 # 检查视频长度限制（60秒）
                 if duration > 60:
                     logger.error("Video duration exceeds 60 seconds limit")
@@ -206,73 +172,27 @@ class WatermarkRemovalService:
                 sess_config.gpu_options.allow_growth = True
 
                 try:
-                    with tf.Session(config=sess_config) as sess:
-                        # 预加载模型（只加载一次）
-                        dummy_input = tf.placeholder(tf.float32, shape=[1, None, None, 6])
-                        output_tensor = self.model.build_server_graph(self.FLAGS, dummy_input)
-                        output_tensor = (output_tensor + 1.) * 127.5
-                        output_tensor = tf.reverse(output_tensor, [-1])
-                        output_tensor = tf.saturate_cast(output_tensor, tf.uint8)
+                    # 提取和处理帧 - 逐帧处理，不预加载模型
+                    frames = []
+                    total_frames = int(duration * fps)
 
-                        # 加载预训练模型权重
-                        vars_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
-                        assign_ops = []
-                        for var in vars_list:
-                            vname = var.name
-                            from_name = vname
-                            try:
-                                var_value = tf.contrib.framework.load_variable(
-                                    self.checkpoint_dir, from_name
-                                )
-                                assign_ops.append(tf.assign(var, var_value))
-                            except Exception as e:
-                                logger.warning(f"Could not load variable {vname}: {e}")
+                    for i, frame in enumerate(video.iter_frames()):
+                        if task_id:
+                            self._update_progress(task_id, i / total_frames * 0.8)  # 80%用于处理帧
 
-                        sess.run(assign_ops)
-                        logger.info('Model loaded once for video processing')
+                        # 保存帧为临时图片
+                        frame_path = os.path.join(temp_dir, f"frame_{i:06d}.png")
+                        cv2.imwrite(frame_path, cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
-                        # 提取和处理帧
-                        frames = []
-                        total_frames = int(duration * fps)
+                        # 处理帧去水印（使用单独的方法）
+                        processed_frame_path = os.path.join(temp_dir, f"processed_{i:06d}.png")
+                        success = self._process_single_frame(frame_path, processed_frame_path, watermark_type)
 
-                        for i, frame in enumerate(video.iter_frames()):
-                            if task_id:
-                                self._update_progress(task_id, i / total_frames * 0.8)  # 80%用于处理帧
-
-                            # 保存帧为临时图片
-                            frame_path = os.path.join(temp_dir, f"frame_{i:06d}.png")
-                            cv2.imwrite(frame_path, cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-
-                            # 处理帧去水印（复用已加载的模型）
-                            processed_frame_path = os.path.join(temp_dir, f"processed_{i:06d}.png")
-                            success = self._process_single_frame_with_session(
-                                frame_path, processed_frame_path, watermark_type, sess, dummy_input, output_tensor)
-
-                            if success:
-                                frames.append(processed_frame_path)
-                            else:
-                                logger.warning(f"Failed to process frame {i}")
-                                frames.append(frame_path)  # 使用原帧
-
-                    # 重新组装视频
-                    if task_id:
-                        self._update_progress(task_id, 0.9)  # 90%开始组装
-
-                    processed_frames = [mp.ImageClip(frame, duration=1/fps) for frame in frames]
-                    final_video = mp.concatenate_videoclips(processed_frames, method="compose")
-
-                    # 添加原始音频
-                    if video.audio:
-                        final_video = final_video.set_audio(video.audio)
-
-                    # 输出视频
-                    final_video.write_videofile(output_path, fps=fps, verbose=False, logger=None)
-
-                    if task_id:
-                        self._update_progress(task_id, 1.0)  # 100%完成
-
-                    logger.info(f"Video processed successfully: {output_path}")
-                    return True
+                        if success:
+                            frames.append(processed_frame_path)
+                        else:
+                            logger.warning(f"Failed to process frame {i}")
+                            frames.append(frame_path)  # 使用原帧
 
                 finally:
                     # 清理临时文件
@@ -281,6 +201,8 @@ class WatermarkRemovalService:
 
         except Exception as e:
             logger.error(f"Error processing video: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             if task_id:
                 self._update_progress(task_id, -1)  # 标记失败
             return False
